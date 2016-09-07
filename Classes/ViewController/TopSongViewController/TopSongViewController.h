@@ -12,9 +12,7 @@
 #import "MarqueeLabel.h"
 #import "NIDropDown.h"
 #import "MP3Player.h"
-#import "Global.h"
-#import "Util.h"
-#import "ThreadsHelper.h"
+
 @interface TopSongViewController : UIViewController<UITableViewDataSource, UITableViewDelegate, NIDropDownDelegate,MP3PlayerDelegate>{
     NIDropDown *dropDown;
 }
@@ -29,7 +27,7 @@
 @property (strong, nonatomic) NSMutableArray *songArr;
 @property (strong, nonatomic) NSString *typeSong;
 @property  BOOL checkview;
-@property  int fromWhichView;
+@property  (nonatomic) int fromWhichView;
 - (IBAction)onSort:(id)sender;
 
 @end

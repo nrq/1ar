@@ -124,7 +124,7 @@
 -(void)NextDetailWithSongArr:(NSMutableArray *)songarr andInde:(int)index{
     PlaySongViewController *play = [[PlaySongViewController alloc]initWithNibName:@"PlaySongViewController" bundle:nil];
     play.songArr = songarr;
-    play.index = index;
+    play.songIndex = index;
     play.pauseOnLoad = ![Util isMusicPlaying];
     [self.navigationController pushViewController:play animated:YES];
     
@@ -226,7 +226,7 @@
 -(void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
     PlaySongViewController *play = [[PlaySongViewController alloc]initWithNibName:@"PlaySongViewController" bundle:nil];
     play.songArr = self.songArr;
-    play.index = indexPath.row;
+    play.songIndex = indexPath.row;
     [self.navigationController pushViewController:play animated:YES];
 }
 

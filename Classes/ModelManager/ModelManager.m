@@ -346,8 +346,7 @@
     s.localMP3 = [Util objectForKey:[NSString stringWithFormat:@"%@_localFile",s.songId]];
     s.downloadNum = [Validator getSafeString:dic[@"download"]];
     s.viewNum = [Validator getSafeString:dic[@"view"]];
-    s.image = [Validator getSafeString:dic[@"image"]];
-    s.orderNumber = [Validator getSafeString:dic[@"order_number"]];
+    s.image =[Validator getSafeString:dic[@"image"]];
     
     NSString *textHtmlNote = [Validator getSafeString:dic[@"description"]];
     NSAttributedString * attrStrNote = [[NSAttributedString alloc] initWithData:[textHtmlNote dataUsingEncoding:NSUnicodeStringEncoding] options:@{ NSDocumentTypeDocumentAttribute: NSHTMLTextDocumentType } documentAttributes:nil error:nil];
@@ -377,7 +376,6 @@
     s.downloadNum = [Validator getSafeString:dic[@"download"]];
     s.viewNum = [Validator getSafeString:dic[@"listen"]];
     s.image =[Validator getSafeString:dic[@"image"]];
-    s.orderNumber = [Validator getSafeString:dic[@"order_number"]];
     
     NSString *textHtmlNote = [Validator getSafeString:dic[@"description"]];
     NSAttributedString * attrStrNote = [[NSAttributedString alloc] initWithData:[textHtmlNote dataUsingEncoding:NSUnicodeStringEncoding] options:@{ NSDocumentTypeDocumentAttribute: NSHTMLTextDocumentType } documentAttributes:nil error:nil];

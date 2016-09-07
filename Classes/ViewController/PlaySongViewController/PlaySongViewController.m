@@ -25,6 +25,11 @@
 #import "AppDelegate.h"
 
 @interface PlaySongViewController ()<ShowPlayListViewControllerDelegate>
+@property (weak, nonatomic) IBOutlet UIView *centralView;
+@property (nonatomic, strong) REPagedScrollView *scrollView;
+@property (nonatomic, strong)  NSNumber *songAux;
+
+@property (nonatomic, assign)  BOOL test;
 @end
 
 @implementation PlaySongViewController{
@@ -33,6 +38,8 @@
     UIView *viewBanner ;
     CustomButton *btnBanner;
     NSTimer *bannerTimer;
+    
+    
 }
 
 -(void)closeMenu{
@@ -48,7 +55,6 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    
     [self fixMultiScreenSize];
     
     UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(closeMenu)];
@@ -60,30 +66,28 @@
     
     [self.view addSubview: backgroundLabel];
     backgroundLabel.hidden = YES;
-    
-    
+    /**/
     CGRect rect = self.pageView.frame;
     
     rect.size.width = SCREEN_WIDTH_PORTRAIT;
-    REPagedScrollView *scrollView = [[REPagedScrollView alloc] initWithFrame:rect];
+    rect.origin.y = 0;
+    _scrollView = [[REPagedScrollView alloc] initWithFrame:rect];
     
-    scrollView.pageControl.pageIndicatorTintColor = [UIColor colorWithRed:169/255.0 green:169/255.0 blue:169/255.0 alpha:1.0];
-    scrollView.pageControl.currentPageIndicatorTintColor = [UIColor colorWithRed:77/255.0 green:56/255.0 blue:65/255.0 alpha:1.0];
-    [self.view addSubview:scrollView];
+    _scrollView.pageControl.pageIndicatorTintColor = [UIColor colorWithRed:169/255.0 green:169/255.0 blue:169/255.0 alpha:1.0];
+    _scrollView.pageControl.currentPageIndicatorTintColor = [UIColor colorWithRed:77/255.0 green:56/255.0 blue:65/255.0 alpha:1.0];
+    [self.view addSubview:_scrollView];
     
     [self.tblView setBackgroundColor:[UIColor clearColor]];
     self.tblView.separatorColor = [UIColor clearColor];
-    //[self.view2 setBackgroundColor:[UIColor redColor]];
-    [scrollView addPage:self.view2];
+    [_scrollView addPage:self.view2];
     
-    [scrollView addPage:self.view1];
-    [scrollView scrollToPageWithIndex:1 animated:NO];
-    //[scrollView setBackgroundColor:[UIColor redColor]];
-    //[self.pageView setBackgroundColor:[UIColor greenColor]];
+    [_scrollView addPage:self.view1];
+    [_scrollView scrollToPageWithIndex:1 animated:NO];
+    [self.pageView addSubview:_scrollView];
     
-    Song *s = [self.songArr objectAtIndex:self.index];
+    Song *s = [self.songArr objectAtIndex:self.songIndex];
     if (![currentAudio isEqualToString:s.songId]){
-        gMP3Player.song = [self.songArr objectAtIndex:self.index];
+        gMP3Player.song = [self.songArr objectAtIndex:self.songIndex];
  
     }
     
@@ -93,6 +97,9 @@
     [self setShuffleBtn];
     if (!self.pauseOnLoad){
         [self play];
+        // checking if there's a forward
+        CMTime toAdvance = [self loadCurrentTimeWithKey:currentAudio];
+        [_audioPlayer seekToTime:toAdvance];
     }
     else
     {
@@ -110,9 +117,8 @@
     
     [self createBanner];
     [self.view bringSubviewToFront:backgroundLabel];
-
-
-   
+    _test = NO;
+    
 }
 
 -(void)createBanner{
@@ -151,11 +157,10 @@
 
 
 -(void)viewWillAppear:(BOOL)animated{
-//    [self.view addSubview:adBanner.view];
-//    [self.view bringSubviewToFront:adBanner.view];
-    //[self.footerView setHidden:TRUE];
-    
-   
+    [super viewWillAppear:animated];
+    _songAux = [NSNumber numberWithInt:self.songIndex];
+
+ 
 }
 
 -(int)randomFromZeroTo:(int)number{
@@ -210,10 +215,11 @@
     // Dispose of any resources that can be recreated.
 }
 
--(void)viewWillDisappear:(BOOL)animated{
-    
 
-    gMP3Player.index = self.index;
+-(void)viewWillDisappear:(BOOL)animated{
+    [super viewWillDisappear:animated];
+    _scrollView = nil;
+/*    gMP3Player.index = self.songIndex;
     gMP3Player.song = gMP3Player.song;
     gMP3Player.songArr = self.songArr;
 //    [[DatabaseManager defaultDatabaseManager]deletePlaylistwithName:CURRENT_PLAYLIST];
@@ -227,6 +233,7 @@
     gMP3Player.view.hidden = NO;
     
     [bannerTimer invalidate];
+ */
 }
 
 -(void)playInThread{
@@ -248,6 +255,9 @@
         //
         currentAudio = gMP3Player.song.songId;
         [self.slider setValue:0.0f];
+
+
+        
         NSURL *urlAudio = [Util getAudioURLForLink:gMP3Player.song.link];
         
         AVURLAsset* audioAsset = [AVURLAsset URLAssetWithURL:urlAudio options:nil];
@@ -255,13 +265,10 @@
         CMTime audioDuration = audioAsset.duration;
         
         audioDurationInSecond = CMTimeGetSeconds(audioDuration);
-        NSLog(@"Duration :%f",audioDurationInSecond);
+       // NSLog(@"Duration :%f",audioDurationInSecond);
         [self fillSongInfo];
         
         AVPlayerItem *item = [AVPlayerItem playerItemWithURL:urlAudio];
-        if (_audioPlayer.observationInfo) {
-            [_audioPlayer removeObserver:self forKeyPath:@"currentItem.status" context:NULL];
-        }
         
         _audioPlayer = [[AVPlayer alloc]initWithPlayerItem:item];
         _audioPlayer.actionAtItemEnd = AVPlayerActionAtItemEndNone;
@@ -270,20 +277,34 @@
                                                  selector:@selector(playerItemDidReachEnd:)
                                                      name:AVPlayerItemDidPlayToEndTimeNotification
                                                    object:[_audioPlayer currentItem]];
-        // retain
-        [_audioPlayer addObserver:self
-                       forKeyPath:@"currentItem.status"
-                          options:NSKeyValueObservingOptionNew
-                          context:NULL];
+        
+       
+        NSError *error;
+        
+        if (error)
+        {
+            NSLog(@"Error in audioPlayer: %@",
+                  [error localizedDescription]);
+        } else {
+            
+        }
         
         self.playBtn.selected = NO;
         [self onPlay:nil];
         [self updateSong];
+        //[self fillSongInfo];
     }
     [Util setObject:gMP3Player.song.songId forKey:CURRENT_SONG_ID_KEY];
+    _test  = NO;
 }
 
+
+
+
+
 -(void) fillSongInfo{
+    //[self.view1 removeFromSuperview];
+   /// [scrollView a
     self.titleLbl.text = gMP3Player.song.name;
     self.songNameLbl.text = gMP3Player.song.name;
     self.artistNameLbl.text = gMP3Player.song.desc;
@@ -308,13 +329,17 @@
     _slider.value = percenSlider;
     [self.imgView setImageWithURL:[NSURL URLWithString:gMP3Player.song.image] placeholderImage:[UIImage imageNamed:@"icon_bg.png"]];
     [self.playBtn setBackgroundImage:[UIImage imageNamed:@"btn_play_new.png"] forState:UIControlStateNormal];
+    
+    [_scrollView.pageViews removeObjectsAtIndexes:[NSIndexSet indexSetWithIndex:1] ];
+    [_scrollView addPage:self.view1];
+    
+
 }
 
 - (void)playerItemDidReachEnd:(NSNotification *)notification {
-    NSLog(@"Deleting pose");
-    [self deleteRecord:currentAudio];
     //    AVPlayerItem *p = [notification object];
     //    [p seekToTime:kCMTimeZero];
+//    [self saveToUserDefaults:nil keyValue:currentAudio];
 }
 
 -(void)OnAddSong:(NSString *)name{
@@ -361,6 +386,8 @@
 
 -(void)updateSilder
 {
+    
+    
     float currentTimeInSecond = CMTimeGetSeconds([_audioPlayer currentTime]);
     
     if (currentTimeInSecond<0) {
@@ -376,17 +403,35 @@
 
 
     if (currentTimeInSecond>=audioDurationInSecond) {
-        NSLog(@"onNext");
-        [self deleteRecord:currentAudio];
-       
-          // Offline data
-       if (_isPushFromMyDownloadScreen == true) {
-          self.songArr = [[DatabaseManager defaultDatabaseManager]getDownloadedSongwithID:nil];
-          [self.tblView reloadData];
-       }
-       
-         [self onNext:_nextBtn];
+      
+        
+        
+        if(! _test){
+            _test = YES;
+            
+            
+            int indexDefaults = [[[NSUserDefaults standardUserDefaults] objectForKey:@"songIndex"] intValue];
+            if (indexDefaults != _songIndex ){
+                _songIndex = indexDefaults;
+            }
+            // Offline data
+            if (_isPushFromMyDownloadScreen == true) {
+                self.songArr = [[DatabaseManager defaultDatabaseManager]getDownloadedSongwithID:nil];
+                [self.tblView reloadData];
+            }
+            
+           // [self onNext:_nextBtn];
+            [self deleteCurrenttTime:currentAudio];
+           // [self.nextBtn sendActionsForControlEvents: UIControlEventTouchUpInside];
+            [self playNext];
+        }
+        
+       // [self setNeedsDisplay];
+        [self.view setNeedsDisplay];
+        
     }
+    [self fillSongInfo];
+    //[self]
     
     self.currentTimeLbl.text = [Util durationToString:currentTimeInSecond];
     _slider.value = percenSlider;
@@ -424,6 +469,7 @@
 }
 
 - (IBAction)onDownload:(id)sender {
+    
     if ([[DatabaseManager defaultDatabaseManager]getDownloadedSongwithID:gMP3Player.song.songId].count > 0) {
         [Util showMessage:@"You have downloaded this audio." withTitle:APP_NAME];
     }
@@ -477,7 +523,7 @@
                         [self.imgView setImageWithURL:[NSURL URLWithString:gMP3Player.song.image] placeholderImage:[UIImage imageNamed:@"icon_bg.png"]];
                         gMP3Player.song.viewNum = s.viewNum;
                         gMP3Player.song.downloadNum = s.downloadNum;
-                        [self.songArr replaceObjectAtIndex:self.index withObject:gMP3Player.song];
+                        [self.songArr replaceObjectAtIndex:self.songIndex withObject:gMP3Player.song];
                         self.viewLbl.text = [NSString stringWithFormat:@"%d",[gMP3Player.song.viewNum intValue]];
                         self.downloadLbl.text = [NSString stringWithFormat:@"%d",[gMP3Player.song.downloadNum intValue]];
                         
@@ -520,8 +566,6 @@
         [_audioPlayer seekToTime:newTime completionHandler:^(BOOL finished) {
             if(finished)
             {
-                [_audioPlayer pause];
-                [_audioPlayer play];
                 [_updateTimer invalidate];
                 _updateTimer = [NSTimer scheduledTimerWithTimeInterval:1.0 target:self selector:@selector(updateSilder) userInfo:nil repeats:YES];
             }
@@ -535,25 +579,27 @@
 }
 
 - (IBAction)onPrevious:(id)sender {
+    
     [self saveCurrenttTime:currentAudio];
+    
     if (_isShuffer && !_isRepeat) {
-        self.index =arc4random_uniform((int)self.songArr.count);
+        self.songIndex =arc4random_uniform((int)self.songArr.count);
     }else{
         //if (!_isRepeat)
         if (_isRepeat) {
-            self.index = self.index;
+            self.songIndex = self.songIndex;
             currentAudio = @"";
         }else{
-            self.index --;
+            self.songIndex --;
         }
     }
     
-    if (self.index<0) {
-        self.index = (int)self.songArr.count -1;
+    if (self.songIndex<0) {
+        self.songIndex = (int)self.songArr.count -1;
     }
     
 
-    gMP3Player.song = [self.songArr objectAtIndex:self.index];
+    gMP3Player.song = [self.songArr objectAtIndex:self.songIndex];
     self.downloadLbl.text = gMP3Player.song.downloadNum;
     self.viewLbl.text = gMP3Player.song.viewNum;
     gMP3Player.song = gMP3Player.song;
@@ -564,45 +610,39 @@
 
 }
 
+- (void)remoteControlReceivedWithEvent:(UIEvent *)event {
+    switch (event.subtype) {
+        case UIEventSubtypeRemoteControlPlay:
+            [_audioPlayer play];
+            [[AVAudioSession sharedInstance] setActive:YES error:nil];
+            break;
+        case UIEventSubtypeRemoteControlPause:
+            [_audioPlayer pause];
+            break;
+        case UIEventSubtypeRemoteControlNextTrack:
+            [self onNext:nil];
+            break;
+        case UIEventSubtypeRemoteControlPreviousTrack:
+            [self onPrevious:nil];
+            break;
+        default:
+            break;
+    }
+}
 - (IBAction)onNext:(id)sender {
     [self saveCurrenttTime:currentAudio];
-    if (_isShuffer && !_isRepeat) {
-        self.index =arc4random_uniform((int)self.songArr.count);
-    }
-    else{
-        //if (!_isRepeat)
-        if (_isRepeat) {
-            self.index = self.index;
-            currentAudio = @"";
-        }else{
-            self.index ++;
-        }
-    }
-    if (self.index>=self.songArr.count) {
-        self.index = 0;
-    }
     
-    gMP3Player.song = [self.songArr objectAtIndex:self.index];
-    self.downloadLbl.text = gMP3Player.song.downloadNum;
-    self.viewLbl.text = gMP3Player.song.viewNum;
-    
-    gMP3Player.song = gMP3Player.song;
-    
-    [Util setObject:gMP3Player.song.songId forKey:CURRENT_SONG_ID_KEY];
-    // hightlight the current song on list
-    [self.tblView selectRowAtIndexPath:[NSIndexPath indexPathForRow:self.index inSection:0] animated:YES scrollPosition:UITableViewScrollPositionMiddle];
-    [self.tblView reloadData];
-    [self play];
-    
+    [self playNext];
 
 }
 -(void)updateSong{
+    [self.imgView setImageWithURL:[NSURL URLWithString:gMP3Player.song.image] placeholderImage:[UIImage imageNamed:@"icon_bg.png"]];
     [ModelManager updateSong:gMP3Player.song.songId path:@"listenSong" WithSuccess:^(NSDictionary *dic){
         Song *s = [ModelManager parseSongFromDic:dic[@"data"]];
         [self.imgView setImageWithURL:[NSURL URLWithString:gMP3Player.song.image] placeholderImage:[UIImage imageNamed:@"icon_bg.png"]];
         gMP3Player.song.viewNum = s.viewNum;
         gMP3Player.song.downloadNum = s.downloadNum;
-        [self.songArr replaceObjectAtIndex:self.index withObject:gMP3Player.song];
+        [self.songArr replaceObjectAtIndex:self.songIndex withObject:gMP3Player.song];
         self.viewLbl.text = [NSString stringWithFormat:@"%d",[gMP3Player.song.viewNum intValue]];
         
     } failure:^(NSString *err) {
@@ -616,12 +656,28 @@
     if(_playBtn.selected)
     {
         [_audioPlayer play];
+        // checking if there's a forward
+        CMTime toAdvance = [self loadCurrentTimeWithKey:currentAudio];
+      //  [_audioPlayer seekToTime:toAdvance];
+        if (toAdvance.value) {
+            [_audioPlayer seekToTime:toAdvance  toleranceBefore:kCMTimeZero toleranceAfter:kCMTimeZero];
+        }
+        
+
+        /*
+        [_audioPlayer seekToTime:toAdvance completionHandler:^(BOOL finished) {
+            if(finished)
+            {
+                [_updateTimer invalidate];
+                _updateTimer = [NSTimer scheduledTimerWithTimeInterval:1.0 target:self selector:@selector(updateSilder) userInfo:nil repeats:YES];
+            }
+        }];*/
+        
         [self.playBtn setBackgroundImage:[UIImage imageNamed:@"btn_pause_new.png"] forState:UIControlStateNormal];
         _updateTimer = [NSTimer scheduledTimerWithTimeInterval:1.0 target:self selector:@selector(updateSilder) userInfo:nil repeats:YES];
     }else
     {
         [_audioPlayer pause];
-        [self saveCurrenttTime:currentAudio];
         [self.playBtn setBackgroundImage:[UIImage imageNamed:@"btn_play_new.png"] forState:UIControlStateNormal];
         [_updateTimer invalidate];
         _updateTimer = nil;
@@ -705,9 +761,8 @@
     if (self.isFromPush) {
         [self dismissViewControllerAnimated:YES completion:nil];
     }else{
-        _updateTimer = nil;
+        //_updateTimer = nil;
         [self.navigationController popViewControllerAnimated:YES];
-
     }
  }
 
@@ -755,7 +810,7 @@
     cell.artistLbl.textColor = [Util colorFromHexString:@"#3e4a43" andAlpha:1];
     
     cell.separatorLbl.backgroundColor =[Util colorFromHexString:@"#32586d" andAlpha:0.5];
-    if (indexPath.row == self.index){
+    if (indexPath.row == self.songIndex){
         
         [cell setBackgroundColor:[Util colorFromHexString:@"#b7b6b5" andAlpha:0.5]];
     }
@@ -767,12 +822,9 @@
 }
 -(void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
 
-    NSLog(@"%ld",(long)indexPath.row);
-    NSLog(@"%@", [[songArr objectAtIndex:indexPath.row] description]);
-    
     gMP3Player.song = [self.songArr objectAtIndex:indexPath.row];
-    self.index = (int)indexPath.row;
-    [self hightLightSongAtIndex: self.index];
+    self.songIndex = (int)indexPath.row;
+    [self hightLightSongAtIndex: self.songIndex];
     [self play];
     [self.tblView reloadData];
 }
@@ -783,49 +835,6 @@
 
 #pragma mark - Time presistance layer
 
-- (void)observeValueForKeyPath:(NSString *)keyPath
-                      ofObject:(id)object
-                        change:(NSDictionary<NSString *,id> *)change
-                       context:(void *)context {
-    
-    NSLog(@"Key observed");
-    switch (_audioPlayer.status) {
-        case AVPlayerItemStatusReadyToPlay:
-            NSLog(@"Normal playback");
-            [self retainPlayTime];
-            [self updateSong];
-            [_audioPlayer pause];
-            [_audioPlayer play];
-            break;
-        default:
-            break;
-    }
-}
-
-
--(void)retainPlayTime
-{
-    if (_audioPlayer.observationInfo) {
-        [_audioPlayer removeObserver:self forKeyPath:@"currentItem.status" context:NULL];
-    }
-    NSLog(@"Retained");
-    CMTime toAdvance = [self loadCurrentTimeWithKey:currentAudio];
-    
-    if CMTIME_IS_VALID(toAdvance) {
-        Float32 floatTime = CMTimeGetSeconds(toAdvance);
-        NSLog(@"Time %f", floatTime);
-        if (floatTime > 1) {
-            float percenSlider = floatTime/audioDurationInSecond;
-            [self.slider setValue:percenSlider animated:true];
-            
-            int32_t timeScale = _audioPlayer.currentItem.asset.duration.timescale;
-            CMTime time = CMTimeMakeWithSeconds(floatTime, timeScale);
-            [_audioPlayer seekToTime:time toleranceBefore:kCMTimeZero toleranceAfter:kCMTimeZero];
-//            [self onSlider:nil];
-            NSLog(@"Retained success");
-        }
-    }
-}
 
 -(void)deleteRecord:(NSString *)key
 {
@@ -834,16 +843,28 @@
 }
 
 - (void)saveCurrenttTime:(NSString *)key {
-    NSLog(@"Saving time");
+   // NSLog(@"Saving time");
     CMTime cmTime = _audioPlayer.currentTime;
-    if (cmTime.value != 0) {
-        NSLog(@"Time saved %lld", cmTime.value);
-        CFDictionaryRef timeAsDictionary = CMTimeCopyAsDictionary(cmTime, kCFAllocatorDefault);
-        
-        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-        [defaults setObject:(__bridge id _Nullable)(timeAsDictionary) forKey:key];
-        [defaults synchronize];
-    }
+   // NSLog(@"%lld",cmTime.value);
+    
+    CFDictionaryRef timeAsDictionary = CMTimeCopyAsDictionary(cmTime, kCFAllocatorDefault);
+    
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    [defaults setObject:(__bridge id _Nullable)(timeAsDictionary) forKey:key];
+    [defaults synchronize];
+    
+}
+- (void)deleteCurrenttTime:(NSString *)key {
+    // NSLog(@"Saving time");
+    CMTime cmTime = CMTimeMake(2, 10);
+    // NSLog(@"%lld",cmTime.value);
+    
+    CFDictionaryRef timeAsDictionary = CMTimeCopyAsDictionary(cmTime, kCFAllocatorDefault);
+    
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    [defaults setObject:(__bridge id _Nullable)(timeAsDictionary) forKey:key];
+    [defaults synchronize];
+    
 }
 
 - (CMTime)loadCurrentTimeWithKey:(NSString *)key {
@@ -854,5 +875,115 @@
     return object;
 }
 
+- (void)setSongIndex:(int)songIndex{
+    _songIndex = songIndex;
+    _songAux = [NSNumber numberWithInt:self.songIndex];
+    [[NSUserDefaults standardUserDefaults] setObject:[NSNumber numberWithInt:songIndex] forKey:@"songIndex"];
+}
+- (IBAction)back30Pressed:(id)sender {
+    
+    float currentTimeInSecond = CMTimeGetSeconds([_audioPlayer currentTime]);
+    currentTimeInSecond = currentTimeInSecond - 30;
+    if (currentTimeInSecond<0) {
+        currentTimeInSecond = 0;
+    }
+    
+    if (currentTimeInSecond > 0){
+        float percenSlider = currentTimeInSecond/audioDurationInSecond;
+        
+        CMTime advance = CMTimeMakeWithSeconds(CMTimeGetSeconds(_audioPlayer.currentTime) - 30, _audioPlayer.currentTime.timescale);
+        [_audioPlayer seekToTime:advance];
+        self.currentTimeLbl.text = [Util durationToString:currentTimeInSecond];
+        _slider.value = percenSlider;
+    }
+    
+    }
+- (IBAction)advance30Pressed:(id)sender {
+    
+    
+    
+    float currentTimeInSecond = CMTimeGetSeconds([_audioPlayer currentTime]);
+    
+    if (currentTimeInSecond<0) {
+        currentTimeInSecond = 0;
+    }
+    
+    if (currentTimeInSecond>0) {
+        //        [MBProgressHUD hideAllHUDsForView:self.view animated:YES];
+    }
+    
+    currentTimeInSecond = currentTimeInSecond + 30;
+    
+    
+    float percenSlider = currentTimeInSecond/audioDurationInSecond;
+    
+    
+    
+    if (currentTimeInSecond>=audioDurationInSecond) {
+        
+        if(! _test){
+            _test = YES;
+            
+            
+            int indexDefaults = [[[NSUserDefaults standardUserDefaults] objectForKey:@"songIndex"] intValue];
+            if (indexDefaults != _songIndex ){
+                _songIndex = indexDefaults;
+            }
+            // Offline data
+            if (_isPushFromMyDownloadScreen == true) {
+                self.songArr = [[DatabaseManager defaultDatabaseManager]getDownloadedSongwithID:nil];
+                [self.tblView reloadData];
+            }
+            //[self.nextBtn sendActionsForControlEvents: UIControlEventTouchUpInside];
+            [self playNext];
+        }
+        
+        [self.view setNeedsDisplay];
+        
+    }else{
+        CMTime advance = CMTimeMakeWithSeconds(CMTimeGetSeconds(_audioPlayer.currentTime) + 30, _audioPlayer.currentTime.timescale);
+        [_audioPlayer seekToTime:advance];
+        
+    }
+    [self fillSongInfo];
+    
+    self.currentTimeLbl.text = [Util durationToString:currentTimeInSecond];
+    _slider.value = percenSlider;
+    
+    
+    
+    
+}
+
+-(void) playNext{
+    if (_isShuffer && !_isRepeat) {
+        self.songIndex =arc4random_uniform((int)self.songArr.count);
+    }
+    else{
+        //if (!_isRepeat)
+        if (_isRepeat) {
+            self.songIndex = self.songIndex;
+            currentAudio = @"";
+        }else{
+            self.songIndex ++;
+        }
+    }
+    if (self.songIndex>=self.songArr.count) {
+        self.songIndex = 0;
+    }
+    
+    gMP3Player.song = [self.songArr objectAtIndex:self.songIndex];
+    self.downloadLbl.text = gMP3Player.song.downloadNum;
+    self.viewLbl.text = gMP3Player.song.viewNum;
+    NSLog(@"songs %lu index %d  %@  %@ ", self.songArr.count, self.songIndex, gMP3Player.song.downloadNum, gMP3Player.song.viewNum );
+    gMP3Player.song = gMP3Player.song;
+    
+    [Util setObject:gMP3Player.song.songId forKey:CURRENT_SONG_ID_KEY];
+    // hightlight the current song on list
+    [self.tblView selectRowAtIndexPath:[NSIndexPath indexPathForRow:self.songIndex inSection:0] animated:YES scrollPosition:UITableViewScrollPositionMiddle];
+    [self.tblView reloadData];
+    
+    [self play];
+}
 
 @end

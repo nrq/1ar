@@ -72,7 +72,7 @@
 -(void)NextDetailWithSongArr:(NSMutableArray *)songarr andInde:(int)index{
     PlaySongViewController *play = [[PlaySongViewController alloc]initWithNibName:@"PlaySongViewController" bundle:nil];
     play.songArr = songarr;
-    play.index = index;
+    play.songIndex = index;
     play.pauseOnLoad = ![Util isMusicPlaying];
     [self.navigationController pushViewController:play animated:YES];
     

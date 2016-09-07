@@ -41,7 +41,6 @@
     NSTimer *bannerTimer;
 }
 
-typedef void(^myCompletion)(BOOL);
 
 -(void)createBanner{
     
@@ -445,17 +444,13 @@ typedef void(^myCompletion)(BOOL);
     
 }
 
-#pragma: mark - GettingData
-
-
 -(void)getData{
     if ([DELEGATE isConnected]) {
         [MBProgressHUD showHUDAddedTo:self.view animated:YES];
     }
-    runInBackgroundWithCompletionHandler(^{
-        
-        for (int i = 0; i < 14; i++) {
-            long before = [songArr count];
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        for (int i = 0; i < 5; i++) {
+
             [ModelManager getListTopSongWithpage:[NSString stringWithFormat:@"%d",page] Success:^(NSMutableArray *arr) {
                 if (arr.count>0) {
                     for (Song *s in arr) {
@@ -463,24 +458,17 @@ typedef void(^myCompletion)(BOOL);
                     }
                 }
                 else{
-                    runInUiThread(^{
-                        [self.view makeToast:@"No Data" duration:2.0 position:CSToastPositionCenter];
-                    });
-                }
-            } failure:^(NSString *err) {
-                runInUiThread(^{
                     [self.view makeToast:@"No Data" duration:2.0 position:CSToastPositionCenter];
-                });
+                }
+                [self reloadTableView];
+                [self endLoading];
+            } failure:^(NSString *err) {
+                [self endLoading];
+                [self.view makeToast:@"No Data" duration:2.0 position:CSToastPositionCenter];
             }];
-            if (before > 0 && self.songArr.count == before) {
-                NSLog(@"counting: %ld, %lu", before, (unsigned long)self.songArr.count);
-                break;
-            }
             page++;
         }
         
-    }, ^{
-        [self endLoading];
     });
 }
 
@@ -488,9 +476,10 @@ typedef void(^myCompletion)(BOOL);
     if ([DELEGATE isConnected]) {
         [MBProgressHUD showHUDAddedTo:self.view animated:YES];
     }
-    runInBackgroundWithCompletionHandler(^{
-        for (int i = 0; i < 14; i++) {
-            long before = [songArr count];
+    
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        for (int i = 0; i < 5; i++) {
+
             [ModelManager getListSongWithType:self.typeSong withPage:[NSString stringWithFormat:@"%d",page] WithSuccess:^(NSMutableArray *arr) {
                 if (arr.count>0) {
                     for (Song *s in arr) {
@@ -498,55 +487,44 @@ typedef void(^myCompletion)(BOOL);
                     }
                 }
                 else{
-                    runInUiThread(^{
-                        [self.view makeToast:@"No Data" duration:2.0 position:CSToastPositionCenter];
-                    });
-                }
-            } failure:^(NSString *err) {
-                runInUiThread(^{
                     [self.view makeToast:@"No Data" duration:2.0 position:CSToastPositionCenter];
-                });
+                }
+                [self reloadTableView];
+                [self endLoading];
+            } failure:^(NSString *err) {
+                [self endLoading];
+                [self.view makeToast:@"No Data" duration:2.0 position:CSToastPositionCenter];
             }];
-            if (before > 0 && self.songArr.count == before) {
-                NSLog(@"counting: %ld, %lu", before, (unsigned long)self.songArr.count);
-                break;
-            }
             page++;
         }
-    }, ^{
-        [self endLoading];
     });
 }
-
-
 
 -(void)getDataWithAlbum{
     if ([DELEGATE isConnected]) {
         [MBProgressHUD showHUDAddedTo:self.view animated:YES];
     }
-    runInBackgroundWithCompletionHandler(^{
-        for (int i = 0; i < 14; i++) {
-            long before = [songArr count];
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        for (int i = 0; i < 5; i++) {
             [ModelManager getListSongByAlbumId:self.album.albumId page:page WithSuccess:^(NSMutableArray *arr) {
                 // return
-                [self handleReturn:arr];
-            } failure:^(NSString *err) {
-                runInUiThread(^{
-                    [self.view makeToast:@"No Data" duration:2.0 position:CSToastPositionCenter];
-                });
-            }];
-            if (before > 0 && self.songArr.count == before) {
-                NSLog(@"counting: %ld, %lu", before, (unsigned long)self.songArr.count);
-                break;
+                if (arr == (id)[NSNull null] || [arr count] == 0) {
+                    [self endLoading];
+                    return;
+                }
                 
-            }
+                if (page ==1) {
+                    [self.songArr removeAllObjects];
+                }
+                [self.songArr addObjectsFromArray:arr];
+                [self reloadTableView];
+                [self endLoading];
+            } failure:^(NSString *err) {
+                [self endLoading];
+            }];
             page++;
         }
-        
-    }, ^{
-        [self endLoading];
     });
-    
 }
 
 
@@ -554,52 +532,35 @@ typedef void(^myCompletion)(BOOL);
     if ([DELEGATE isConnected]) {
         [MBProgressHUD showHUDAddedTo:self.view animated:YES];
     }
-    runInBackgroundWithCompletionHandler(^{
-        for (int i = 0; i < 14; i++) {
-            long before = [self.songArr count];
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        for (int i = 0; i < 5; i++) {
             [ModelManager getListSongByCategoryId:self.category.categoryId page:page WithSuccess:^(NSMutableArray *arr) {
                 // return
-                [self handleReturn:arr];
+                if (arr == (id)[NSNull null] || [arr count] == 0) {
+                    [self endLoading];
+                    return;
+                }
+                if (page ==1) {
+                    [self.songArr removeAllObjects];
+                }
+                [self.songArr addObjectsFromArray:arr];;
+                [self reloadTableView];
+                [self endLoading];
+
             } failure:^(NSString *err) {
-                runInUiThread(^{
-                    [self.view makeToast:@"No Data" duration:2.0 position:CSToastPositionCenter];
-                });
+                [self endLoading];
             }];
-            if (before > 0 && self.songArr.count == before) {
-                NSLog(@"counting: %ld, %lu", before, (unsigned long)self.songArr.count);
-                break;
-            }
             page++;
         }
-    }, ^{
-        [self endLoading];
     });
 }
-
-
-
--(void) handleReturn: (NSMutableArray*) array
-{
-    if (array == (id)[NSNull null] || [array count] == 0) {
-        return;
-    }
-    if (page ==1) {
-        [self.songArr removeAllObjects];
-    }
-    [self.songArr addObjectsFromArray:array];;
-}
-
-
-
 
 // finish loading tableview data
 -(void)endLoading {
-    runInUiThread(^{
-        [self reloadTableView];
-        [_tblView finishRefresh];
-        [_tblView finishLoadMore];
-        [MBProgressHUD hideAllHUDsForView:self.view animated:YES];
-    });
+    [_tblView finishRefresh];
+    [_tblView finishLoadMore];
+    [MBProgressHUD hideAllHUDsForView:self.view animated:YES];
+
 }
 
 -(void)setTheme{
@@ -661,27 +622,24 @@ typedef void(^myCompletion)(BOOL);
 -(void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
     UITableViewCell *myCell = [tableView cellForRowAtIndexPath:indexPath];
     [myCell setSelectionStyle:UITableViewCellSelectionStyleNone]; // disable highlight effect
-    
-    if (![DELEGATE isConnected]) {
-        Song *s = [self.songArr objectAtIndex:indexPath.row];
-        if ([Util isAudioExistForLink:s.link]) {
-            [self pushToPlayVCForIndex:indexPath];
-        }else{
-            [Util showMessage:ALERT_TURN_ON_DATA withTitle:APP_NAME];
-        }
-    }else{
+    Song *s = [self.songArr objectAtIndex:indexPath.row];
+    if ([Util isAudioExistForLink:s.link]) {
         [self pushToPlayVCForIndex:indexPath];
-    }
+    }else{
+        if (![DELEGATE isConnected]) {
+            [Util showMessage:ALERT_TURN_ON_DATA withTitle:APP_NAME];
+        }else{
+            [self pushToPlayVCForIndex:indexPath];
+        }
     
+    }
+
 }
 
 - (void)pushToPlayVCForIndex:(NSIndexPath*)indexPath{
-    PlaySongViewController *play = [[PlaySongViewController alloc]initWithNibName:@"PlaySongViewController" bundle:nil];
-    if (_isPlaying) {
-        [play saveCurrenttTime:currentAudio];
-    }
+    PlaySongViewController *play = [[PlaySongViewController alloc] initWithNibName:@"PlaySongViewController" bundle:nil];
     play.songArr = self.songArr;
-    play.index = (int)indexPath.row;
+    play.songIndex = (int)indexPath.row;
     play.isPushFromMyDownloadScreen = (self.fromWhichView == VIEW_MY_DOWNLOAD) ? true : false;
     
     [self.navigationController pushViewController:play animated:YES];
@@ -721,9 +679,9 @@ typedef void(^myCompletion)(BOOL);
 }
 
 -(void)NextDetailWithSongArr:(NSMutableArray *)songarr andInde:(int)index{
-    PlaySongViewController *play = [[PlaySongViewController alloc]initWithNibName:@"PlaySongViewController" bundle:nil];
+    PlaySongViewController *play = [[PlaySongViewController alloc] initWithNibName:@"PlaySongViewController" bundle:nil];
     play.songArr = songarr;
-    play.index = index;
+    play.songIndex = index;
     play.pauseOnLoad = ![Util isMusicPlaying];
     [self.navigationController pushViewController:play animated:YES];
 }

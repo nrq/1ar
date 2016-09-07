@@ -61,6 +61,7 @@
     
     NSError *activationError = nil;
     success = [audioSession setActive:YES error:&activationError];
+    if (!success) {}
     
     [self showOrHide];
 }
@@ -95,8 +96,14 @@
     
     _audioPlayer = [AVPlayer playerWithURL:urlAudio];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(itemDidFinishPlaying:) name:AVPlayerItemDidPlayToEndTimeNotification object:playerItem];
+    
+    // checking if there's a forward
+    CMTime toAdvance = [self loadCurrentTimeWithKey:currentAudio];
+    
+
     [_audioPlayer play];
-    [self retainPlayTime];
+    [_audioPlayer seekToTime:toAdvance];
+
 }
 
 -(void)itemDidFinishPlaying:(NSNotification *) notification {
@@ -117,14 +124,6 @@
 #pragma mark - Time presistance layer
 
 
--(void)retainPlayTime
-{
-    CMTime toAdvance = [self loadCurrentTimeWithKey:currentAudio];
-    if CMTIME_IS_VALID(toAdvance) {
-        [_audioPlayer seekToTime:toAdvance];
-    }
-}
-
 -(void)deleteRecord:(NSString *)key
 {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
@@ -134,16 +133,15 @@
 - (void)saveCurrenttTime:(NSString *)key {
     NSLog(@"Saving time");
     CMTime cmTime = _audioPlayer.currentTime;
-    if (cmTime.value != 0) {
-        NSLog(@"Time saved %lld", cmTime.value);
-        CFDictionaryRef timeAsDictionary = CMTimeCopyAsDictionary(cmTime, kCFAllocatorDefault);
-        
-        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-        [defaults setObject:(__bridge id _Nullable)(timeAsDictionary) forKey:key];
-        [defaults synchronize];
-    }
-}
+    NSLog(@"%lld",cmTime.value);
 
+    CFDictionaryRef timeAsDictionary = CMTimeCopyAsDictionary(cmTime, kCFAllocatorDefault);
+
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    [defaults setObject:(__bridge id _Nullable)(timeAsDictionary) forKey:key];
+    [defaults synchronize];
+    
+}
 
 - (CMTime)loadCurrentTimeWithKey:(NSString *)key {
     NSLog(@"loading saved time");
@@ -188,6 +186,8 @@
     if (self.index>=self.songArr.count) {
         self.index = 0;
     }
+    
+    NSLog(@"songs %lu index %d", self.songArr.count, self.index);
     self.song = [self.songArr objectAtIndex:self.index];
     self.nameLbl.text = self.song.name;
     self.artistLbl.text = self.song.desc;
@@ -210,7 +210,6 @@
         [self.pauseBtn setBackgroundImage:[UIImage imageNamed:@"btn_play.png"] forState:UIControlStateNormal];
         NSLog(@"onPlayPause.pause");
         [_audioPlayer pause];
-        [self saveCurrenttTime:currentAudio];
         
     }
 }

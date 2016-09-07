@@ -30,11 +30,11 @@
 
 @property (weak, nonatomic) IBOutlet UIButton *downloadIcon;
 @property (weak, nonatomic) IBOutlet UIButton *noOfViewIcon;
-@property int index;
+@property ( assign) int songIndex;
 @property BOOL pauseOnLoad;
 
-@property (strong, nonatomic) IBOutlet UIView *view1;
-@property (strong, nonatomic) IBOutlet UIView *view2;
+@property (weak, nonatomic) IBOutlet UIView *view1;
+@property (weak, nonatomic) IBOutlet UIView *view2;
 @property (weak, nonatomic) IBOutlet UITableView *tblView;
 @property (weak, nonatomic) IBOutlet UIScrollView *pageView;
 
@@ -51,12 +51,14 @@
 @property (weak, nonatomic) IBOutlet UIButton *playBtn;
 @property (weak, nonatomic) IBOutlet UIButton *nextBtn;
 @property (weak, nonatomic) IBOutlet UIButton *repeatBtn;
+@property (weak, nonatomic) IBOutlet UIButton *advanceBtn;
 
 @property (weak, nonatomic) IBOutlet UIButton *previousBtn;
 @property (weak, nonatomic) IBOutlet UIButton *shuffleBtn;
 @property (weak, nonatomic) IBOutlet UISlider *slider;
 @property (weak, nonatomic) IBOutlet UILabel *downloadLbl;
 @property (weak, nonatomic) IBOutlet UILabel *viewLbl;
+@property (weak, nonatomic) IBOutlet UIButton *gobackBtn;
 
 @property (weak, nonatomic) IBOutlet MarqueeLabel *songNameLbl;
 @property (weak, nonatomic) IBOutlet MarqueeLabel *artistNameLbl;
@@ -71,5 +73,4 @@
 - (IBAction)onPlay:(id)sender;
 - (IBAction)onRightAction:(id)sender;
 
-- (void)saveCurrenttTime:(NSString *)key;
 @end

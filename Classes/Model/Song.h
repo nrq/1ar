@@ -25,7 +25,6 @@
 @property (strong, nonatomic) NSString *downloadNum;
 @property (strong, nonatomic) NSString *viewNum;
 @property (strong, nonatomic) NSString *image;
-@property (strong, nonatomic) NSString *orderNumber;
 
 @property (strong, nonatomic) NSString *desc;
 

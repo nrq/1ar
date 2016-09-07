@@ -12,8 +12,8 @@
 
 #define APP_NAME                @"NurulQuran Audio"
 
-#define BASE_URL                @"http://myislamwell.nurulquran.com/index.php/api/"
-#define GOODAPP_URL             @"http://projectemplate.com/"
+#define BASE_URL                @"http://nqapp.nurulquran.com/index.php/api/"
+#define GOODAPP_URL             @"http://islamwell.com/"
 #define GET_ALBUM               @"album"
 #define GET_CATEGORIES          @"category"
 #define GET_CATEGORIES_NEW      @"category?page=%d"
